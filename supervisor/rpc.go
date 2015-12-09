@@ -10,8 +10,12 @@ const (
 	apiVersion string = "3.0"
 )
 
-func makeParams(params ...interface{}) xmlrpc.Params {
-	return xmlrpc.Params{params}
+func makeParams(params ...interface{}) []interface{} {
+	var ret []interface{}
+	for _, param := range params {
+		ret = append(ret, param)
+	}
+	return ret
 }
 
 type SupervisorState struct {
@@ -19,7 +23,7 @@ type SupervisorState struct {
 	StateName string
 }
 
-func newSupervisorState(result xmlrpc.Struct) *SupervisorState {
+func newSupervisorState(result map[string]interface{}) *SupervisorState {
 	state := new(SupervisorState)
 	state.StateCode = result["statecode"].(int64)
 	state.StateName = result["statename"].(string)
@@ -47,23 +51,44 @@ type ProcessInfo struct {
 	PID           int64
 }
 
-func newProcessInfo(result xmlrpc.Struct) ProcessInfo {
-	return ProcessInfo{
-		Name:          result["name"].(string),
-		Description:   result["description"].(string),
-		Group:         result["group"].(string),
-		Start:         result["start"].(int64),
-		Stop:          result["stop"].(int64),
-		Now:           result["now"].(int64),
-		State:         result["state"].(int64),
-		StateName:     result["statename"].(string),
-		SpawnErr:      result["spawnerr"].(string),
-		ExitStatus:    result["exitstatus"].(int64),
-		Logfile:       result["logfile"].(string),
-		StdoutLogfile: result["stdout_logfile"].(string),
-		StderrLogfile: result["stderr_logfile"].(string),
-		PID:           result["pid"].(int64),
+func newProcessInfo(result map[string]interface{}) ProcessInfo {
+	var processInfo ProcessInfo
+	for key, value := range result {
+		if value == nil {
+			continue
+		}
+		switch key {
+		case "name":
+			processInfo.Name = value.(string)
+		case "description":
+			processInfo.Description = value.(string)
+		case "group":
+			processInfo.Group = value.(string)
+		case "start":
+			processInfo.Start = value.(int64)
+		case "stop":
+			processInfo.Stop = value.(int64)
+		case "now":
+			processInfo.Now = value.(int64)
+		case "state":
+			processInfo.State = value.(int64)
+		case "statename":
+			processInfo.StateName = value.(string)
+		case "spawnerr":
+			processInfo.SpawnErr = value.(string)
+		case "exitstatus":
+			processInfo.ExitStatus = value.(int64)
+		case "logfile":
+			processInfo.Logfile = value.(string)
+		case "stdout_logfile":
+			processInfo.StdoutLogfile = value.(string)
+		case "stderr_logfile":
+			processInfo.StderrLogfile = value.(string)
+		case "pid":
+			processInfo.PID = value.(int64)
+		}
 	}
+	return processInfo
 }
 
 func (info ProcessInfo) String() string {
@@ -77,7 +102,7 @@ type ProcessStatus struct {
 	Status      int64
 }
 
-func newProcessStatus(result xmlrpc.Struct) ProcessStatus {
+func newProcessStatus(result map[string]interface{}) ProcessStatus {
 	return ProcessStatus{
 		Name:        result["name"].(string),
 		Description: result["description"].(string),
@@ -151,7 +176,7 @@ func (client Client) GetIdentification() (id string, err error) {
 
 // GetState returns the Supervisor process state.
 func (client Client) GetState() (state *SupervisorState, err error) {
-	result := xmlrpc.Struct{}
+	result := make(map[string]interface{})
 	if err = client.RpcClient.Call("supervisor.getState", nil, &result); err == nil {
 		state = newSupervisorState(result)
 	}
@@ -184,7 +209,7 @@ func (client Client) Restart() (result bool, err error) {
 
 // GetProcessInfo retrieves information for a particular Supervisor process.
 func (client Client) GetProcessInfo(name string) (info ProcessInfo, err error) {
-	result := xmlrpc.Struct{}
+	result := make(map[string]interface{})
 	if err = client.RpcClient.Call("supervisor.getProcessInfo", name, &result); err == nil {
 		info = newProcessInfo(result)
 	}
@@ -197,7 +222,7 @@ func (client Client) GetAllProcessInfo() (info []ProcessInfo, err error) {
 	if err = client.RpcClient.Call("supervisor.getAllProcessInfo", nil, &results); err == nil {
 		info = make([]ProcessInfo, len(results))
 		for i, result := range results {
-			info[i] = newProcessInfo(result.(xmlrpc.Struct))
+			info[i] = newProcessInfo(result.(map[string]interface{}))
 		}
 	}
 	return
@@ -223,7 +248,7 @@ func (client Client) StartAllProcesses(wait bool) (info []ProcessStatus, err err
 	if err = client.RpcClient.Call("supervisor.startAllProcesses", wait, &results); err == nil {
 		info = make([]ProcessStatus, len(results))
 		for i, result := range results {
-			info[i] = newProcessStatus(result.(xmlrpc.Struct))
+			info[i] = newProcessStatus(result.(map[string]interface{}))
 		}
 	}
 	return
@@ -235,7 +260,7 @@ func (client Client) StopAllProcesses(wait bool) (info []ProcessStatus, err erro
 	if err = client.RpcClient.Call("supervisor.stopAllProcesses", wait, &results); err == nil {
 		info = make([]ProcessStatus, len(results))
 		for i, result := range results {
-			info[i] = newProcessStatus(result.(xmlrpc.Struct))
+			info[i] = newProcessStatus(result.(map[string]interface{}))
 		}
 	}
 	return

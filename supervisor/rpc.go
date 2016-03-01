@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/kolo/xmlrpc"
+	"net"
+	"net/http"
 )
 
 const (
@@ -138,10 +140,15 @@ type Client struct {
 	ApiVersion string
 }
 
+func dial(proto, addr string) (net.Conn, error) {
+	return net.Dial(proto, addr)
+}
+
 // NewClient creates a new supervisor RPC client.
 func NewClient(url string) (client Client, err error) {
 	var rpc *xmlrpc.Client
-	if rpc, err = xmlrpc.NewClient(url, nil); err != nil {
+
+	if rpc, err = xmlrpc.NewClient(url, &http.Transport{Dial: dial}); err != nil {
 		return
 	}
 

@@ -136,12 +136,36 @@ func (tail ProcessTail) String() string {
 	return tail.Log
 }
 
+type ReloadInfo struct {
+	Added, Changed, Removed []string
+}
+
+func newReloadInfo(results []interface{}) ReloadInfo {
+	var info ReloadInfo
+
+	for _, add := range results[0].([]interface{}) {
+		info.Added = append(info.Added, add.(string))
+	}
+	for _, chg := range results[1].([]interface{}) {
+		info.Changed = append(info.Changed, chg.(string))
+	}
+	for _, del := range results[2].([]interface{}) {
+		info.Removed = append(info.Removed, del.(string))
+	}
+
+	return info
+}
+
+func (info ReloadInfo) String() string {
+	return fmt.Sprintf("added: %d, changed: %d, removed: %d", len(info.Added), len(info.Changed), len(info.Removed))
+}
+
 type Client struct {
 	RpcClient  *xmlrpc.Client
 	ApiVersion string
 }
 
-func dialer(url string) func(proto, addr string) (net.Conn, error) {
+func dialer(sock string) func(proto, addr string) (net.Conn, error) {
 	return func(proto, addr string) (net.Conn, error) {
 		return net.Dial("unix", sock)
 	}
@@ -152,10 +176,11 @@ func NewClient(url string) (client Client, err error) {
 	var rpc *xmlrpc.Client
 
 	var transport *http.Transport
+
 	if strings.HasPrefix(url, "unix://") {
 		var sock = strings.TrimPrefix(url, "unix://")
 		if index := strings.Index(sock, ".sock"); index > 0 {
-			url = "http://localhost:80/" + sock[index+6:] //fake
+			url = "http://localhost:80" + sock[index+5:] //fake
 			sock = sock[:index+5]
 		}
 		transport = &http.Transport{Dial: dialer(sock)}
@@ -224,6 +249,14 @@ func (client Client) Shutdown() (result bool, err error) {
 // Restart restarts the Supervisor process.
 func (client Client) Restart() (result bool, err error) {
 	err = client.RpcClient.Call("supervisor.restart", nil, &result)
+	return
+}
+
+func (client Client) ReloadConfig() (info ReloadInfo, err error) {
+	var results []interface{}
+	if err = client.RpcClient.Call("supervisor.reloadConfig", nil, &results); err == nil {
+		info = newReloadInfo(results[0].([]interface{}))
+	}
 	return
 }
 

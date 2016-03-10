@@ -175,7 +175,7 @@ func dialer(sock string) func(proto, addr string) (net.Conn, error) {
 func NewClient(url string) (client Client, err error) {
 	var rpc *xmlrpc.Client
 
-	var transport *http.Transport
+	var transport http.RoundTripper
 
 	if strings.HasPrefix(url, "unix://") {
 		var sock = strings.TrimPrefix(url, "unix://")
